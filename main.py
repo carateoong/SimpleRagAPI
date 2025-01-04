@@ -12,23 +12,16 @@ app = FastAPI()
 model_id = "sentence-transformers/all-MiniLM-L6-v2"
 model = SentenceTransformer("all-MiniLM-L6-v2")
 
-sentences = dataReader.readJSON("data.json")
-
-embeddings = model.encode(sentences)
-vector_dimension = embeddings.shape[1]
+vector_dimension = 384
 
 # Create a FAISS Index with correct dimensions
 index = faiss.IndexFlatL2(vector_dimension)
 
 texts = []
 
-
 #Create pydantic models to define fields and attributes
 class Sentence(BaseModel):
     id: int
-    text: str
-
-class Input(BaseModel):
     text: str
 
 @app.get("/")
@@ -47,22 +40,15 @@ def ingest(document: List[Sentence]):
         index.add(embedding)
         texts.append(sentence.text)
 
-
     print(texts)
     return {"ingested text": document}
 
 
 @app.get("/query")
-def query(input: Input):
-    print("texts")
-    print(texts)
-    print("input text:")
-    print(input.text)
+def query(text: str):
+
     # Generate embedding for the query
-    query_embedding = model.encode([input.text])
-    print("query embedding")
-    print(query_embedding)
-    print(query_embedding.shape)
+    query_embedding = model.encode([text])
 
     distances, indices = index.search(query_embedding, 1)
 
@@ -70,4 +56,3 @@ def query(input: Input):
     closest_text = texts[indices[0][0]]
 
     return {"closest text": closest_text, "distance": float(distances[0][0])}
-
